@@ -1,0 +1,52 @@
+# How jobs are classified and turned into signals. Edit the `seller` block for
+# your product; the rest works for most B2B sellers as is.
+
+# Checked in order; first match wins. Regexes run on the lowercase job title.
+families:
+  revops: "revenue operations|revops|sales operations|marketing operations|gtm operations|go-to-market operations|crm (admin|manager)|salesforce (admin|administrator|developer)|hubspot (admin|administrator)"
+  security: "security|infosec|grc|governance, risk|compliance|privacy|\\biam\\b|identity"
+  data: "\\bdata\\b|analytics|business intelligence|\\bbi\\b|machine learning|\\bml\\b|\\bai\\b|data scien"
+  marketing: "marketing|demand gen|growth|brand|content|communications|\\bpr\\b|social media|seo|events"
+  sales: "account executive|\\bae\\b|sales|business development|\\bbdr\\b|\\bsdr\\b|partnerships|channel|alliances"
+  customer_success: "customer success|account manager|support|implementation|onboarding|solutions consultant|customer experience"
+  it: "\\bit\\b|information technology|helpdesk|help desk|systems administrator|end user|workplace tech"
+  engineering: "engineer|developer|\\bsre\\b|devops|platform|architect|software|frontend|backend|full[- ]stack"
+  product_design: "product manager|product owner|designer|\\bux\\b|\\bui\\b|research"
+  finance: "finance|accounting|accountant|controller|fp&a|payroll|procurement|tax"
+  people: "recruit|talent|people|\\bhr\\b|human resources"
+  operations: "operations|\\bops\\b|chief of staff|office manager"
+
+# Senior roles (new leaders buy new tools in their first 90 days)
+leader_regex: "\\b(chief|cto|ciso|cfo|cmo|cro|coo|cio|vp|vice president|head of|director|svp|evp|gm|general manager)\\b"
+first_hire_regex: "\\b(founding|first)\\b"
+
+# ---------------------------------------------------------------------------
+# SELLER CONFIG: edit for your product.
+# EXAMPLE: a seller of ABM / intent data software.
+# ---------------------------------------------------------------------------
+seller:
+  product: "Example: ABM and intent data platform"
+  target_families: [revops, marketing, sales]
+  # tools or initiatives that mean "they are working on what I solve" (searched in job text)
+  keywords: ["account-based", "abm", "intent data", "hubspot", "salesforce", "clay", "outbound", "pipeline generation"]
+  # competitor product names in job text = they use a competitor today
+  competitors: ["6sense", "demandbase", "zoominfo", "apollo.io"]
+
+recent_days: 30          # on the first run, jobs posted within this many days count as "new"
+spike_threshold: 5       # this many new target-function roles = hiring spike
+
+weights:
+  new_target_role: 8
+  leadership_hire: 25
+  first_hire_in_function: 20
+  keyword_in_job: 12
+  competitor_in_job: 20
+  hiring_spike: 20
+
+plays:
+  new_target_role: role_based_outreach
+  leadership_hire: new_leader_first_90_days
+  first_hire_in_function: first_hire_window
+  keyword_in_job: initiative_match
+  competitor_in_job: competitive_displacement
+  hiring_spike: team_buildout

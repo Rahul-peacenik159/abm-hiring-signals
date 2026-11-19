@@ -1,0 +1,61 @@
+{
+ "jobs": [
+  {
+   "id": 101,
+   "title": "VP, Revenue Operations",
+   "updated_at": "2026-11-10T10:00:00-05:00",
+   "first_published": "2026-11-08T10:00:00-05:00",
+   "location": {
+    "name": "Remote, US"
+   },
+   "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/101",
+   "content": "&lt;p&gt;Own our &lt;strong&gt;HubSpot&lt;/strong&gt; and Salesforce stack and build an account-based motion. Experience with 6sense preferred.&lt;/p&gt;",
+   "departments": [
+    {
+     "id": 1,
+     "name": "Revenue"
+    }
+   ],
+   "offices": []
+  },
+  {
+   "id": 102,
+   "title": "Founding Product Marketing Manager",
+   "updated_at": "2026-11-12T10:00:00Z",
+   "first_published": "2026-11-12T10:00:00Z",
+   "location": {
+    "name": "New York"
+   },
+   "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/102",
+   "content": "&lt;p&gt;Launch our product&lt;/p&gt;",
+   "departments": [
+    {
+     "id": 2,
+     "name": "Marketing"
+    }
+   ],
+   "offices": []
+  },
+  {
+   "id": 103,
+   "title": "Senior Backend Engineer",
+   "updated_at": "2026-06-01T10:00:00Z",
+   "first_published": "2026-06-01T10:00:00Z",
+   "location": {
+    "name": "Remote"
+   },
+   "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/103",
+   "content": "&lt;p&gt;Go, Postgres&lt;/p&gt;",
+   "departments": [
+    {
+     "id": 3,
+     "name": "Engineering"
+    }
+   ],
+   "offices": []
+  }
+ ],
+ "meta": {
+  "total": 3
+ }
+}

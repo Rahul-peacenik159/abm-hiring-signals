@@ -1,0 +1,88 @@
+name: run
+
+# Run on GitHub's servers: Actions tab > "run" > Run workflow.
+# Results: table on the run's Summary page + downloadable "results" artifact (CSV/JSONL).
+#
+# PRIVACY: in a PUBLIC repo, run logs, summaries and artifacts are visible to others.
+# Scan public sample lists here; run your real account list in a PRIVATE copy of this repo.
+
+on:
+  workflow_dispatch:
+    inputs:
+      accounts:
+        description: "Account list CSV in the repo"
+        type: string
+        default: "sample-data/accounts.csv"
+      domains:
+        description: "Or type domains separated by spaces (overrides the CSV)"
+        type: string
+        default: ""
+      recent_days:
+        description: "First run only: jobs posted within this many days count as new"
+        type: string
+        default: "30"
+
+  # Weekly run (uses the defaults in the env block). Uncomment to enable.
+  # schedule:
+  #   - cron: "23 4 * * 1"   # Mondays 04:23 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      ACCOUNTS: ${{ inputs.accounts || 'sample-data/accounts.csv' }}
+      DOMAINS: ${{ inputs.domains }}
+      RECENT_DAYS: ${{ inputs.recent_days || '30' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Restore previous run (for "what's new")
+        uses: actions/cache/restore@v5
+        with:
+          path: out/snapshots
+          key: snapshots-abm-hiring-signals-${{ github.run_id }}
+          restore-keys: snapshots-abm-hiring-signals-
+
+      - name: Run
+        run: |
+          set -f
+          if [ -n "$DOMAINS" ]; then
+            python -m hiring_signals run --domains $DOMAINS --out out --recent-days "$RECENT_DAYS"
+          else
+            python -m hiring_signals run --accounts "$ACCOUNTS" --out out --recent-days "$RECENT_DAYS"
+          fi
+
+      - name: Results table on the Summary page
+        if: always()
+        run: |
+          if [ -d out ]; then python -m hiring_signals summary out >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Save state for next run
+        if: always()
+        uses: actions/cache/save@v5
+        with:
+          path: out/snapshots
+          key: snapshots-abm-hiring-signals-${{ github.run_id }}
+
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: results
+          path: |
+            out/*.csv
+            out/*.md
+            out/*.jsonl
+            out/*.json
+          retention-days: 30

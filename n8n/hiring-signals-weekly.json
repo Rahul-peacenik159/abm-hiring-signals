@@ -1,0 +1,189 @@
+{
+  "name": "ABM hiring signals (weekly)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "78e1824f-2aa9-4374-ad78-dfa1072db4b7",
+      "name": "Manual run",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "2add7eff-8939-4b6e-9c6b-ec999f6ee2ac",
+      "name": "Weekly",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Replace with a Google Sheets / HubSpot / BigQuery node that outputs domain, ats, board.\n// ats: greenhouse | lever | ashby. board: the token in the job board URL.\nreturn [\n  { domain: 'gitlab.com', ats: 'greenhouse', board: 'gitlab' },\n  { domain: 'palantir.com', ats: 'lever', board: 'palantir' },\n  { domain: 'ashbyhq.com', ats: 'ashby', board: 'ashby' },\n].map((json) => ({ json }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "da31f543-1cbe-4aff-989f-66c9e1221bcd",
+      "name": "Accounts",
+      "position": [
+        240,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.ats === 'greenhouse' ? 'https://boards-api.greenhouse.io/v1/boards/' + $json.board + '/jobs?content=true' : $json.ats === 'lever' ? 'https://api.lever.co/v0/postings/' + $json.board + '?mode=json' : 'https://api.ashbyhq.com/posting-api/job-board/' + $json.board }}",
+        "options": {
+          "timeout": 30000,
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "onError": "continueRegularOutput",
+      "id": "b70533e4-ff94-41c2-b796-5d638fb5f8a1",
+      "name": "Fetch job board",
+      "position": [
+        480,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Same logic as hiring_signals/analyze.py (simplified). Edit SELLER for your product.\nconst SELLER = {\n  targetFamilies: ['revops', 'marketing', 'sales'],\n  keywords: ['account-based', 'abm', 'intent data', 'hubspot', 'salesforce', 'clay'],\n  competitors: ['6sense', 'demandbase', 'zoominfo'],\n  recentDays: 30,\n};\nconst FAMILIES = [\n  ['revops', /revenue operations|revops|sales operations|marketing operations|gtm operations/i],\n  ['security', /security|infosec|grc|compliance|privacy|identity/i],\n  ['data', /\\bdata\\b|analytics|business intelligence|machine learning|\\bai\\b/i],\n  ['marketing', /marketing|demand gen|growth|brand|content|communications/i],\n  ['sales', /account executive|sales|business development|\\bbdr\\b|\\bsdr\\b|partnerships/i],\n  ['customer_success', /customer success|account manager|support|implementation|onboarding/i],\n  ['engineering', /engineer|developer|\\bsre\\b|devops|platform|architect/i],\n];\nconst LEADER = /\\b(chief|cto|ciso|cfo|cmo|cro|vp|vice president|head of|director)\\b/i;\nconst strip = (h) => String(h || '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/<[^>]+>/g, ' ');\nconst norm = (ats, j) => ats === 'greenhouse'\n  ? { id: String(j.id), title: j.title, posted: j.first_published || j.updated_at, url: j.absolute_url, text: strip(j.content) }\n  : ats === 'lever'\n  ? { id: j.id, title: j.text, posted: new Date(j.createdAt).toISOString(), url: j.hostedUrl, text: j.descriptionPlain || '' }\n  : { id: j.id, title: j.title, posted: j.publishedAt, url: j.jobUrl, text: j.descriptionPlain || '' };\nconst cutoff = Date.now() - SELLER.recentDays * 864e5;\nconst now = new Date().toISOString();\nconst accounts = $('Accounts').all();\nconst responses = $('Fetch job board').all();\nconst out = [];\nconst sig = (domain, type, value, extra) => ({ account_domain: domain, signal_type: type, signal_value: value,\n  tool_name: '', category: '', role: 'trigger', weight: 0, play: '', source: '', evidence: '', evidence_url: '',\n  pack: 'hiring-signals', observed_at: now, ...extra });\naccounts.forEach((acc, i) => {\n  const { domain, ats } = acc.json;\n  const body = (responses[i] && responses[i].json && responses[i].json.body) || {};\n  const raw = ats === 'lever' ? (Array.isArray(body) ? body : []) : (body.jobs || []);\n  const jobs = raw.filter((j) => j.isListed !== false).map((j) => norm(ats, j));\n  for (const j of jobs) {\n    const fam = (FAMILIES.find(([, rx]) => rx.test(j.title)) || ['other'])[0];\n    const isNew = new Date(j.posted).getTime() >= cutoff;\n    if (!isNew) continue;\n    const text = (j.title + ' ' + j.text).toLowerCase();\n    if (SELLER.targetFamilies.includes(fam)) {\n      out.push(sig(domain, 'new_role', j.title, { category: fam, weight: 8, play: 'role_based_outreach', source: ats, evidence_url: j.url }));\n      if (LEADER.test(j.title)) out.push(sig(domain, 'leadership_hire', j.title, { category: fam, weight: 25, play: 'new_leader_first_90_days', source: ats, evidence_url: j.url }));\n    }\n    SELLER.keywords.filter((k) => text.includes(k)).forEach((k) => out.push(sig(domain, 'keyword_in_job', k, { category: fam, weight: 12, play: 'initiative_match', source: ats, evidence: j.title, evidence_url: j.url })));\n    SELLER.competitors.filter((k) => text.includes(k)).forEach((k) => out.push(sig(domain, 'competitor_in_job', k, { category: fam, role: 'competitor', weight: 20, play: 'competitive_displacement', source: ats, evidence: j.title, evidence_url: j.url })));\n  }\n  out.push(sig(domain, 'open_roles', String(jobs.length), { role: 'neutral', category: 'hiring', source: ats }));\n});\nreturn out.map((json) => ({ json }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "id": "122a27f0-52cd-44df-8c04-e830fc227a23",
+      "name": "Classify jobs and score",
+      "position": [
+        720,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "projectId": {
+          "__rl": true,
+          "value": "YOUR_GCP_PROJECT",
+          "mode": "id"
+        },
+        "datasetId": {
+          "__rl": true,
+          "value": "abm",
+          "mode": "id"
+        },
+        "tableId": {
+          "__rl": true,
+          "value": "signals",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleBigQuery",
+      "typeVersion": 2.1,
+      "id": "7abf50da-3f2d-42c7-bab3-c24b0edd3f9a",
+      "name": "Write to BigQuery abm.signals",
+      "position": [
+        960,
+        100
+      ],
+      "notes": "Add your Google BigQuery credential and project. Table schema: abm-tech-footprint/bigquery/00_schema.sql. Swap for Google Sheets or Slack if you prefer."
+    }
+  ],
+  "connections": {
+    "Manual run": {
+      "main": [
+        [
+          {
+            "node": "Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly": {
+      "main": [
+        [
+          {
+            "node": "Accounts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Accounts": {
+      "main": [
+        [
+          {
+            "node": "Fetch job board",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch job board": {
+      "main": [
+        [
+          {
+            "node": "Classify jobs and score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify jobs and score": {
+      "main": [
+        [
+          {
+            "node": "Write to BigQuery abm.signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}

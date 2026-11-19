@@ -1,0 +1,18 @@
+[
+ {
+  "id": "a1",
+  "text": "Account Executive, Enterprise",
+  "createdAt": 1794000000000,
+  "hostedUrl": "https://jobs.lever.co/acme/a1",
+  "categories": {
+   "commitment": "Full-time",
+   "location": "London",
+   "team": "Sales",
+   "department": "Go To Market"
+  },
+  "descriptionPlain": "Sell to enterprise accounts. We use ZoomInfo today.",
+  "additionalPlain": "",
+  "lists": [],
+  "workplaceType": "hybrid"
+ }
+]

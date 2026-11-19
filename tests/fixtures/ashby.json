@@ -1,0 +1,25 @@
+{
+ "apiVersion": "1",
+ "jobs": [
+  {
+   "id": "x1",
+   "title": "Head of Security",
+   "department": "Engineering",
+   "team": "Security",
+   "employmentType": "FullTime",
+   "location": "Remote",
+   "publishedAt": "2026-11-15T09:00:00.000+00:00",
+   "isListed": true,
+   "isRemote": true,
+   "jobUrl": "https://jobs.ashbyhq.com/acme/x1",
+   "descriptionPlain": "Build our SOC 2 program."
+  },
+  {
+   "id": "x2",
+   "title": "Hidden role",
+   "isListed": false,
+   "publishedAt": "2026-11-15T09:00:00.000+00:00",
+   "jobUrl": ""
+  }
+ ]
+}
